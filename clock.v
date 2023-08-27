@@ -30,21 +30,19 @@ module clock(
 
     );
 	parameter T1S=27'd100000000;   //常量1s//晶振100MHz周期10ns
-	reg [26:0]cnt_1s;	//1秒计录
-	reg [7:0]second=0;	//秒数记录
-	reg [7:0]min=0;		//分数记录
-	reg [7:0]hour=0;	//小时数记录
-	reg [17:0] cnt_sm;	//数码管扫描计录//频率500Hz
-	reg [2:0] cnt_which;	//决定哪一位数码管显示//十进制
-	reg [7:0] which;	//决定哪一位数码管显示//二进制
-	reg [3:0] num;	//用于将内部时间一位一位传给数码管段码翻译部分
-	reg [7:0] smg;	//承载一位数码管的段码
-	reg DIR=1'B0;	//上升沿作为500Hz扫频
+	reg [26:0]cnt_1s=0;	//1秒计录
+	reg [7:0]second=59;	//秒数记录
+	reg [7:0]min=59;		//分数记录
+	reg [7:0]hour=23;	//小时数记录
+	reg [17:0] cnt_sm=0;	//数码管扫描计录//频率500Hz//周期2us
+	reg [2:0] cnt_which=0;	//决定哪一位数码管显示//十进制
+	reg [7:0] which=0;	//决定哪一位数码管显示//二进制
+	reg [3:0] num=0;	//用于将内部时间一位一位传给数码管段码翻译部分
+	reg [7:0] smg=0;	//承载一位数码管的段码
+	reg pulse=1'b0;	//上升沿作为500Hz扫频
 
 	always @(posedge clk)	//计时1s
-		if(rst)
-		cnt_1s<=27'd0;
-		else if(cnt_1s==T1S)
+		if(cnt_1s==T1S)
 		cnt_1s<=27'd0;
 		else
 		cnt_1s<=cnt_1s+1'b1;
@@ -76,21 +74,21 @@ module clock(
 			second=second;
 		end
 
-	always @(posedge clk)	//数码管扫描//频率500Hz
+	always @(posedge clk)	//数码管扫描//频率500Hz//周期2us
 	begin
 		if (cnt_sm==18'd200000)
 		begin
 			cnt_sm<=0;
-			DIR<=1'b1;	//产生一个上升沿
+			pulse<=1'b1;	//产生一个上升沿
 		end
 		else
 		begin
 			cnt_sm<=cnt_sm+1;
-			DIR<=1'B0;
+			pulse<=1'B0;
 		end
 	end
 
-	always @(posedge DIR)	//根据500hz的频率，生成cnt_which,作为显示某位数码管的依据
+	always @(posedge pulse)	//根据500hz的频率，生成cnt_which,作为显示某位数码管的依据
 	begin
 		if(cnt_which==7)
 		cnt_which<=0;
