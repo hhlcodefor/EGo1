@@ -341,11 +341,12 @@ module clock(
 
 	end
 
+
+
+
+
 	assign seg_data1=smg;	//段码传输
 	assign seg_data2=smg;	//段码传输
 	assign seg_which=which;	//位选传输
 
 endmodule
-
-					
-				
