@@ -44,7 +44,7 @@ module clock(
 
 	parameter xd=21'd2000000;	//削抖计时20ms
 	reg [20:0] cnt_xd=0;		//削抖记录
-	reg [1:0]key_data=0;	//按键数据//十进制//就是板子上按键的标号
+	reg [2:0]key_data=3'd0;	//按键数据//十进制//就是板子上按键的标号
 	reg state=0;		//时钟模式//状态机
 	reg [25:0]cnt_trinkle=0;	//手动调节时间功能//闪烁记录
 	reg [1:0]change_which=0;	//手动调节时间功能//调节时间类型，时？分？秒？
@@ -88,7 +88,7 @@ module clock(
 			else
 		begin
 			case (key_data)
-				2'd02:
+				3'd2:
 					begin	//按s1所调时间类型减少一个单位
 					case(change_which)
 					2'd0:begin
@@ -112,7 +112,7 @@ module clock(
 					default : second=second;
 					endcase
 					end
-				2'd05:
+				3'd5:
 					begin	//按s4所调时间类型增加一个单位
 					case(change_which)
 					2'd0:begin
@@ -175,7 +175,7 @@ module clock(
 
 	always @(posedge clk)		//两状态切换//未来想改成多状态切换的状态机
 	begin
-		if(key_data==2'd01)
+		if(key_data==1)
 			state<=~state;
 		else
 			state<=state;
