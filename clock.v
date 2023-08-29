@@ -42,7 +42,7 @@ module clock(
 	reg [7:0] smg=0;	//承载一位数码管的段码
 	reg pulse=1'b0;	//上升沿作为500Hz扫频
 
-	parameter xd=21'd2000000;	//削抖计时20ms
+	parameter xd=21'd2_000_000;	//削抖计时20ms
 	reg [20:0] cnt_xd=0;		//削抖记录
 	reg [2:0]key_data=3'd0;	//按键数据//十进制//就是板子上按键的标号
 	reg [1:0]state=0;		//时钟模式//状态机
