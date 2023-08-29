@@ -54,7 +54,7 @@ module clock(
 	reg [8:0]mb_10msecond=0;    //秒表最小单位记录
 	reg [7:0]mb_second=0;   //秒表秒数记录
 	reg [7:0]mb_min=0;   //秒表分钟数记录
-	reg [1:0]play=0;    //秒表状态记录
+	reg play=0;    //秒表状态记录
 	///////////////////////////////////////////////////////////////    时钟逻辑部分
 	always @(posedge clk)	//计时1s
 		if(cnt_1s==T1S)
@@ -67,7 +67,7 @@ module clock(
 		begin
 			if(!rst)
 			second=0;
-			else if (state==0)	//时钟逻辑状态
+			else if (state!=1)	//时钟逻辑状态
 			begin
 			if(cnt_1s==T1S)
 			second=second+1;	//秒计时
@@ -220,9 +220,22 @@ module clock(
 	end
 	always @(posedge clk)	//秒表分秒毫转换逻辑
 		begin
+		if (state==2) begin //change_which决定调整时间类型，时？分？秒？
+			if(key_data==3)
+				play=~play;
+			else if(key_data==2) begin
+				mb_10msecond=0;
+				mb_second=0;
+				mb_min=0;
+				end
+			else
+			play=play;
+		end
+		else
+		state=state;
 			if(!rst)
 			mb_10msecond=0;
-			else if (state==2)	//  秒表逻辑状态
+			else if (play==1)	//  秒表逻辑状态
 			begin
 			if(mb_10ms==MB_10ms)
 			mb_10msecond=mb_10msecond+1;	//10毫秒计时
@@ -246,7 +259,7 @@ module clock(
 			mb_10msecond=mb_10msecond;
 			end
 			else
-			state<=state;
+			state=state;
 	end
 	///////////////////////////////////////////////////////////////    数码管显示部分
 	always @(posedge clk)	//数码管扫描//频率500Hz//周期2us
@@ -382,6 +395,8 @@ module clock(
 		endcase
 		end
 	end
+
+
 
 
 	always @(posedge clk)	//数码管段码翻译部分，将需要显示的数字转化成数码管相对应的段码
