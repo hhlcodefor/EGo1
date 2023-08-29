@@ -31,7 +31,9 @@ module clock(
 	output [7:0]seg_which,	//数码管位选信号
 	output alarm_data,      //闹钟响铃信号输出
 	output alarm_edit_data,     //闹钟编辑信号输出
-	output alarm_power_data_out     //闹钟开关信号输出
+	output alarm_power_data_out,     //闹钟开关信号输出
+	output pwm,     //音频输出信号
+	output audio_sd     //无用信号，本来是用来控制音频的开关，改用alarm控制
 
     );
 	parameter T1S=27'd100000000;   //常量1s//晶振100MHz周期10ns
@@ -66,6 +68,7 @@ module clock(
 	reg alarm=0;   //闹钟响铃状态
 	reg alarm_edit=0;     //闹钟编辑状态
 	reg alarm_power=0;      //闹钟开关信号
+
 	///////////////////////////////////////////////////////////////    时钟逻辑部分
 	always @(posedge clk)	//计时1s
 		if(cnt_1s==T1S)
@@ -81,7 +84,9 @@ module clock(
 			else if (state!=1)	//时钟逻辑状态
 			begin
 			if(second==ar_second&&min==ar_min&&hour==ar_hour&&alarm==0&&alarm_power==1)     //闹钟时间响铃检验，只有在闹钟开关开启时才能响铃
+			begin
 			alarm=alarm+1;
+			end
 			else
 			alarm=alarm;
 			if(alarm==1&&key_data==4)       //闹钟开启的情况下使用按键关闭闹钟
@@ -345,6 +350,16 @@ module clock(
 		else
 		alarm_edit=0;
 		end
+
+
+		music_2tiger music_2tiger(      //两只老虎模块实例化
+			.clk(clk),
+			.rst_n(alarm),
+			.music_sd(audio_sd),
+			.beep(pwm)
+			);
+
+
 	///////////////////////////////////////////////////////////////    数码管显示部分
 	always @(posedge clk)	//数码管扫描//频率500Hz//周期2us
 	begin

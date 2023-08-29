@@ -25,7 +25,7 @@ module music_2tiger(
 
     input          clk     ,//系统时钟 100MHZ
     input          rst_n   ,//系统复位
-    output reg     music_sd=1,
+    output reg     music_sd,
     output  reg    beep     //蜂鸣器控制信号
 );
 //参数定义
@@ -311,6 +311,10 @@ always @(posedge clk or negedge rst_n)begin
     else begin
         beep <= 1'b0;
     end
+end
+
+always @(posedge clk)begin
+    music_sd=1;
 end
 endmodule
 
