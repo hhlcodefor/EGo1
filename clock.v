@@ -24,10 +24,14 @@ module clock(
 	input clk,	//系统时钟
 	input rst,	//复位
 	input [4:0]key,	//键盘输入
+	input alarm_power_data, //闹钟开关信号输入
 
 	output [7:0]seg_data1, //第一个四位数码管显示数据
 	output [7:0]seg_data2,	//第二个四位数码管显示数据
-	output [7:0]seg_which	//数码管位选信号
+	output [7:0]seg_which,	//数码管位选信号
+	output alarm_data,      //闹钟响铃信号输出
+	output alarm_edit_data,     //闹钟编辑信号输出
+	output alarm_power_data_out     //闹钟开关信号输出
 
     );
 	parameter T1S=27'd100000000;   //常量1s//晶振100MHz周期10ns
@@ -55,6 +59,13 @@ module clock(
 	reg [7:0]mb_second=0;   //秒表秒数记录
 	reg [7:0]mb_min=0;   //秒表分钟数记录
 	reg play=0;    //秒表状态记录
+
+	reg [7:0]ar_second=0;	//闹钟秒数记录
+	reg [7:0]ar_min=01;		//闹钟分数记录
+	reg [7:0]ar_hour=7;	//闹钟小时数记录
+	reg alarm=0;   //闹钟响铃状态
+	reg alarm_edit=0;     //闹钟编辑状态
+	reg alarm_power=0;      //闹钟开关信号
 	///////////////////////////////////////////////////////////////    时钟逻辑部分
 	always @(posedge clk)	//计时1s
 		if(cnt_1s==T1S)
@@ -69,6 +80,12 @@ module clock(
 			second=0;
 			else if (state!=1)	//时钟逻辑状态
 			begin
+			if(second==ar_second&&min==ar_min&&hour==ar_hour&&alarm==0&&alarm_power==1)     //闹钟时间响铃检验，只有在闹钟开关开启时才能响铃
+			alarm=alarm+1;
+			else
+			alarm=alarm;
+			if(alarm==1&&key_data==4)       //闹钟开启的情况下使用按键关闭闹钟
+			alarm=0;
 			if(cnt_1s==T1S)
 			second=second+1;	//秒计时
 			else if(second==60)
@@ -180,11 +197,11 @@ module clock(
 		key_data<=0;
 	end
 
-	always @(posedge clk)		//两状态切换//未来想改成多状态切换的状态机//添加秒表模块变为三状态轮转
+	always @(posedge clk)		//两状态切换//未来想改成多状态切换的状态机//添加秒表模块变为三状态轮转//添加闹钟模块变为4状态轮转
 	begin
 		if(key_data==1)
 		    begin
-		    if(state!=2)
+		    if(state!=3)
 		    state=state+1;
 		    else
 		    state=0;
@@ -195,7 +212,7 @@ module clock(
 
 	always @(posedge clk)	//change_which决定调整时间类型，时？分？秒？
 	begin
-		if (state==1) begin
+		if (state==1||state==3) begin     //在闹钟模块重复利用
 			if(key_data==3)
 			begin
 				change_which=change_which+1;
@@ -261,6 +278,73 @@ module clock(
 			else
 			state=state;
 	end
+	///////////////////////////////////////////////////////////////    闹钟功能部分
+	always @(posedge clk)
+		begin
+		alarm_power=alarm_power_data;       //闹钟开关输入信号传递
+		if(state==3)        //闹钟模式下改动
+		begin
+			case (key_data)     //闹钟设定时间调节
+				3'd2:
+					begin	//按s1所调时间类型减少一个闹钟单位
+					case(change_which)
+					2'd0:begin
+						if(ar_hour==0)
+						ar_hour=23;
+						else
+						ar_hour=ar_hour-1;
+					end
+					2'd1:begin
+						if(ar_min==0)
+						ar_min=59;
+						else
+						ar_min=ar_min-1;
+					end
+					2'd2:begin
+						if(ar_second==0)
+						ar_second=59;
+						else
+						ar_second=ar_second-1;
+					end
+					default : ar_second=ar_second;
+					endcase
+					end
+				3'd5:
+					begin	//按s4所调时间类型增加一个单位
+					case(change_which)
+					2'd0:begin
+						if(ar_hour==23)
+						ar_hour=0;
+						else
+						ar_hour=ar_hour+1;
+					end
+					2'd1:begin
+						if(ar_min==59)
+						ar_min=0;
+						else
+						ar_min=ar_min+1;
+					end
+					2'd2:begin
+						if(ar_second==59)
+						ar_second=0;
+						else
+						ar_second=ar_second+1;
+					end
+					default : ar_second=ar_second;
+					endcase
+					end
+				3'd4:alarm_edit=~alarm_edit;        //闹钟编辑模式切换
+				default :
+				begin
+				ar_second=ar_second;
+				ar_min=ar_min;
+				ar_hour=ar_hour;
+				end
+				endcase
+		end
+		else
+		alarm_edit=0;
+		end
 	///////////////////////////////////////////////////////////////    数码管显示部分
 	always @(posedge clk)	//数码管扫描//频率500Hz//周期2us
 	begin
@@ -287,7 +371,7 @@ module clock(
 
 	always @(posedge clk)	//位于"调整时间状态时"shine控制调整时间时数码管的闪烁,shine=0表示亮起，闪烁周期为0.5s,正常状态不启动
 	begin
-		if(state==1)		//后续开发闹钟也要闪烁，到时候再加
+		if(state==1||alarm_edit==1)		//后续开发闹钟也要闪烁，到时候再加//闹钟模块共用闪烁模式
 		begin
 			if(cnt_trinkle==26'd50000000)
 			begin
@@ -366,7 +450,7 @@ module clock(
 
 	always @(posedge clk)	//用于将程序内部计算的时间拆成8个数字，一位一位传给数码管翻译部分，翻译成用于显示的段码
 	begin
-	if(state!=2)        //  非秒表模式下
+	if(state!=2&&state!=3)        //  非秒表模式下//非闹钟模式下
 		begin
 		case(cnt_which)
 			3'd0:num<=hour/10;	//小时数的十位
@@ -380,7 +464,7 @@ module clock(
 			default : num<=0;
 		endcase
 		end
-	else        //秒表模式下
+	else  if(state==2)      //秒表模式下
 		begin
 		case(cnt_which)
 			3'd0:num<=mb_min/10;	//分钟数的十位
@@ -391,6 +475,19 @@ module clock(
 			3'd5:num<=10;
 			3'd6:num<=mb_10msecond/10;	//10毫秒数的十位
 			3'd7:num<=mb_10msecond%10;	//10毫秒数的个位
+			default : num<=0;
+		endcase
+		end
+		else begin
+		case(cnt_which)     //闹钟模式下，显示闹钟的设定时间
+			3'd0:num<=ar_hour/10;	//小时数的十位
+			3'd1:num<=ar_hour%10;	//小时数的个位
+			3'd2:num<=10;	//10无实际意义，用于翻译数码管段时显示'-'段，分割时分秒
+			3'd3:num<=ar_min/10;	//分钟数的十位
+			3'd4:num<=ar_min%10;	//分钟数的个位
+			3'd5:num<=10;
+			3'd6:num<=ar_second/10;	//秒数的十位
+			3'd7:num<=ar_second%10;	//秒数的个位
 			default : num<=0;
 		endcase
 		end
@@ -425,5 +522,8 @@ module clock(
 	assign seg_data1=smg;	//段码传输
 	assign seg_data2=smg;	//段码传输
 	assign seg_which=which;	//位选传输
+	assign alarm_data=alarm;    //闹钟响铃信号传输
+	assign alarm_edit_data=alarm_edit;      //闹钟编辑信号传输
+	assign alarm_power_data_out=alarm_power;        //闹钟开关信号输出
 
 endmodule

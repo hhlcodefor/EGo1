@@ -1,5 +1,9 @@
 set_property -dict {PACKAGE_PIN P17 IOSTANDARD LVCMOS33} [get_ports clk]
 set_property -dict {PACKAGE_PIN P15 IOSTANDARD LVCMOS33} [get_ports rst]
+set_property -dict {PACKAGE_PIN F6 IOSTANDARD LVCMOS33} [get_ports alarm_data]
+set_property -dict {PACKAGE_PIN G4 IOSTANDARD LVCMOS33} [get_ports alarm_edit_data]
+set_property -dict {PACKAGE_PIN P3 IOSTANDARD LVCMOS33} [get_ports alarm_power_data]
+set_property -dict {PACKAGE_PIN G3 IOSTANDARD LVCMOS33} [get_ports alarm_power_data_out]
 
 set_property -dict {PACKAGE_PIN G2 IOSTANDARD LVCMOS33} [get_ports {seg_which[7]}]
 set_property -dict {PACKAGE_PIN C2 IOSTANDARD LVCMOS33} [get_ports {seg_which[6]}]
@@ -33,3 +37,5 @@ set_property -dict {PACKAGE_PIN R17 IOSTANDARD LVCMOS33} [get_ports {key[1]}]
 set_property -dict {PACKAGE_PIN R15 IOSTANDARD LVCMOS33} [get_ports {key[2]}]
 set_property -dict {PACKAGE_PIN V1  IOSTANDARD LVCMOS33} [get_ports {key[3]}]
 set_property -dict {PACKAGE_PIN U4  IOSTANDARD LVCMOS33} [get_ports {key[4]}]
+
+
