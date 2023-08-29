@@ -218,12 +218,12 @@ module clock(
 		else
 		mb_10ms<=mb_10ms+1'b1;
 	end
-	always @(posedge clk)	//秒表分秒毫转换逻辑
+	always @(posedge clk)       //秒表主要功能部分
 		begin
-		if (state==2) begin //change_which决定调整时间类型，时？分？秒？
-			if(key_data==3)
+		if (state==2) begin     //仅在秒表模式下按键操作才有效
+			if(key_data==3)     //play状态决定秒表的暂停与运行
 				play=~play;
-			else if(key_data==2) begin
+			else if(key_data==2) begin  //使用按键复位秒表
 				mb_10msecond=0;
 				mb_second=0;
 				mb_min=0;
@@ -235,8 +235,8 @@ module clock(
 		state=state;
 			if(!rst)
 			mb_10msecond=0;
-			else if (play==1)	//  秒表逻辑状态
-			begin
+			else if (play==1)	//  秒表逻辑运行状态，只要是非暂停状态秒表都会后台运行
+			begin	//秒表分秒毫转换逻辑
 			if(mb_10ms==MB_10ms)
 			mb_10msecond=mb_10msecond+1;	//10毫秒计时
 			else if(mb_10msecond==100)
