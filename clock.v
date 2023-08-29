@@ -45,11 +45,16 @@ module clock(
 	parameter xd=21'd2000000;	//削抖计时20ms
 	reg [20:0] cnt_xd=0;		//削抖记录
 	reg [2:0]key_data=3'd0;	//按键数据//十进制//就是板子上按键的标号
-	reg state=0;		//时钟模式//状态机
+	reg [1:0]state=0;		//时钟模式//状态机
 	reg [25:0]cnt_trinkle=0;	//手动调节时间功能//闪烁记录
 	reg [1:0]change_which=0;	//手动调节时间功能//调节时间类型，时？分？秒？
 	reg shine = 1'b0;	//数码管暗灭状态
-
+	parameter MB_10ms=20'd1000000;   //秒表计时10ms
+	reg [19:0]mb_10ms=0;    //10ms记录
+	reg [8:0]mb_10msecond=0;    //秒表最小单位记录
+	reg [7:0]mb_second=0;   //秒表秒数记录
+	reg [7:0]mb_min=0;   //秒表分钟数记录
+	reg [1:0]play=0;    //秒表状态记录
 	///////////////////////////////////////////////////////////////    时钟逻辑部分
 	always @(posedge clk)	//计时1s
 		if(cnt_1s==T1S)
@@ -85,7 +90,7 @@ module clock(
 			else
 			second=second;
 			end
-			else
+			else if(state==1)
 		begin
 			case (key_data)
 				3'd2:
@@ -144,6 +149,8 @@ module clock(
 				end
 				endcase
 		end
+		else
+		state<=state;
 	end
 
 	///////////////////////////////////////////////////////////////    手动调整时间部分
@@ -173,12 +180,17 @@ module clock(
 		key_data<=0;
 	end
 
-	always @(posedge clk)		//两状态切换//未来想改成多状态切换的状态机
+	always @(posedge clk)		//两状态切换//未来想改成多状态切换的状态机//添加秒表模块变为三状态轮转
 	begin
 		if(key_data==1)
-			state<=~state;
+		    begin
+		    if(state!=2)
+		    state=state+1;
+		    else
+		    state=0;
+		    end
 		else
-			state<=state;
+			state=state;
 	end
 
 	always @(posedge clk)	//change_which决定调整时间类型，时？分？秒？
@@ -198,7 +210,44 @@ module clock(
 		else
 		change_which=0;
 	end
-
+	////////////////////////////////////////////////////////////////秒表计时模块
+	always @(posedge clk)       //计时10ms
+	begin
+	    if(mb_10ms==MB_10ms)
+		mb_10ms<=20'd0;
+		else
+		mb_10ms<=mb_10ms+1'b1;
+	end
+	always @(posedge clk)	//秒表分秒毫转换逻辑
+		begin
+			if(!rst)
+			mb_10msecond=0;
+			else if (state==2)	//  秒表逻辑状态
+			begin
+			if(mb_10ms==MB_10ms)
+			mb_10msecond=mb_10msecond+1;	//10毫秒计时
+			else if(mb_10msecond==100)
+				begin
+				mb_second=mb_second+1;	//秒计时
+				mb_10msecond=0;
+				if(mb_second==60)
+					begin
+					mb_min=mb_min+1;  //分钟计时
+					mb_second=0;
+					if(mb_min==60)
+					mb_min=0;
+					else
+					mb_min=mb_min;
+					end
+				else
+				mb_second=mb_second;
+				end
+			else
+			mb_10msecond=mb_10msecond;
+			end
+			else
+			state<=state;
+	end
 	///////////////////////////////////////////////////////////////    数码管显示部分
 	always @(posedge clk)	//数码管扫描//频率500Hz//周期2us
 	begin
@@ -304,6 +353,8 @@ module clock(
 
 	always @(posedge clk)	//用于将程序内部计算的时间拆成8个数字，一位一位传给数码管翻译部分，翻译成用于显示的段码
 	begin
+	if(state!=2)        //  非秒表模式下
+		begin
 		case(cnt_which)
 			3'd0:num<=hour/10;	//小时数的十位
 			3'd1:num<=hour%10;	//小时数的个位
@@ -315,6 +366,21 @@ module clock(
 			3'd7:num<=second%10;	//秒数的个位
 			default : num<=0;
 		endcase
+		end
+	else        //秒表模式下
+		begin
+		case(cnt_which)
+			3'd0:num<=mb_min/10;	//分钟数的十位
+			3'd1:num<=mb_min%10;	//分钟数的个位
+			3'd2:num<=10;	//10无实际意义，用于翻译数码管段时显示'-'段，分割时分秒
+			3'd3:num<=mb_second/10;	//秒数的十位
+			3'd4:num<=mb_second%10;	//秒数的个位
+			3'd5:num<=10;
+			3'd6:num<=mb_10msecond/10;	//10毫秒数的十位
+			3'd7:num<=mb_10msecond%10;	//10毫秒数的个位
+			default : num<=0;
+		endcase
+		end
 	end
 
 
