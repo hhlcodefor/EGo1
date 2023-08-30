@@ -25,6 +25,7 @@ module clock(
     input rst,    //复位
     input[4:0] key,    //键盘输入
     input alarm_power_data, //闹钟开关信号输入
+    input key_power_data,   //按键反馈音乐开关
 
     output[7:0] seg_data1, //第一个四位数码管显示数据
     output[7:0] seg_data2,    //第二个四位数码管显示数据
@@ -68,6 +69,16 @@ module clock(
     reg alarm = 0;   //闹钟响铃状态
     reg alarm_edit = 0;     //闹钟编辑状态
     reg alarm_power = 0;      //闹钟开关信号
+    wire music_out;         //承载music_2tiger的输出
+    reg alarm_music;        //将music_out装入寄存器
+
+    parameter MID_MI = 18'd151745;    //(100_000_000/659)//按键反馈声音设置为中音MI
+    parameter TIME_KEY = 27'd10_000_000;    //100ms,预设按键反馈声音持续时间
+    reg key_music = 0;        //按下按键反馈声音
+    reg[24:0] cnt_delay = 0;    //节拍的计数器，与反馈声音的时间对比
+    reg[18:0] cnt_freq = 0;    //音符一个小周期的播放计数器
+    reg key_pressed = 0;  //记录键盘被过了，写这个变量是因为key_data不能持续很长时间
+    wire[17:0] duty_data;//小周期中电平为高的时间
 
 
     ///////////////////////////////////////////////////////////////    时钟逻辑部分
@@ -357,14 +368,18 @@ module clock(
         .clk(clk),
         .rst_n(alarm),
         .music_sd(audio_sd),
-        .beep(pwm)
+        .beep(music_out)
     );
+    always @(posedge clk)   //将music_out装入寄存器中
+        begin
+            alarm_music = music_out;
+        end
 
 
     ///////////////////////////////////////////////////////////////    数码管显示部分
     always @(posedge clk)    //数码管扫描//频率500Hz//周期2us
         begin
-            if (cnt_sm == 18'd200000)
+            if (cnt_sm == 18'd10000)
                 begin
                     cnt_sm <= 0;
                     pulse <= 1'b1;    //产生一个上升沿
@@ -534,6 +549,72 @@ module clock(
                 end
 
         end
+
+    ///////////////////////////////////////////////////////////////////////按键反馈模块
+    always @(posedge clk)    //按键时间计数
+        begin
+            if (key_data && !key_pressed && key_power_data)
+                begin
+                    key_pressed <= 1;
+                end
+            else
+                key_pressed <= key_pressed;
+
+            if (key_pressed == 1)
+                begin
+                    if (!key_power_data) begin
+                        cnt_delay <= 25'd0;
+                    end
+                    else if (cnt_delay == TIME_KEY) begin
+                        cnt_delay <= 25'd0;
+                        key_pressed <= 0;
+                    end
+                    else begin
+                        cnt_delay <= cnt_delay+1'b1;
+                    end
+                end
+            else
+                cnt_delay <= 25'd0;
+        end
+
+    always @(posedge clk)    //中音MI的音符小周期计数
+        begin
+            if (key_pressed == 1)
+                begin
+                    if (!key_power_data) begin
+                        cnt_freq <= 19'd1;
+                    end
+                    else if (cnt_freq == MID_MI) begin
+                        cnt_freq <= 19'd1;
+                    end
+                    else begin
+                        cnt_freq <= cnt_freq+1'b1;
+                    end
+                end
+            else
+                cnt_freq <= 19'd1;
+        end
+//记录的持续时间已经达到其音调频率倒数对应的的周期时间，表示走完一个音调频率(一个现实中的音调由很多个小周期构成，这个只是表示走完了一个小周期，一个现实中的音符结束由另外的cnt_delay == TIME_KEY控制)
+    assign duty_data = MID_MI >> 3;//移位越多，占空比越低
+
+    always @(posedge clk)
+        begin
+            if (key_pressed == 1)
+                begin
+                    if (!key_power_data) begin
+                        key_music <= 1'b0;
+                    end
+                    else begin
+                        key_music <= (cnt_freq <= duty_data) ? 1'b1:1'b0;//在一个音符频率倒数对应的的小周期中，前面一部分是低，后一部分是高，具体取决于duty_data是fred_data的多少向右的位移，
+                    end
+                end
+            else
+                key_music <= 1'b0;
+        end
+
+
+    assign pwm = (alarm) ? alarm_music:key_music;       //闹钟响的话优先放闹钟的声音
+
 
     assign seg_data1 = smg;    //段码传输
     assign seg_data2 = smg;    //段码传输
