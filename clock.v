@@ -39,7 +39,7 @@ module clock(
 );
     parameter T1S = 27'd100000000;   //常量1s//晶振100MHz周期10ns
     reg[26:0] cnt_1s = 0;    //1秒计录
-    reg[7:0] second = 55;    //秒数记录
+    reg[7:0] second = 59;    //秒数记录
     reg[7:0] min = 59;        //分数记录
     reg[7:0] hour = 23;    //小时数记录
     reg[17:0] cnt_sm = 0;    //数码管扫描计录//频率500Hz//周期2us
